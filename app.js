@@ -1,6 +1,6 @@
 const CONFIG = {
   password: "California2022!",
-  googleClientId: "213574543519-q70v7qsv9mkvnpjpds5o2e5bg7utg0e7.apps.googleusercontent.com", //"213574543519-3f050ph2jcohilvrtmc9ip814m2mumss.apps.googleusercontent.com",
+  googleClientId: "213574543519-3f050ph2jcohilvrtmc9ip814m2mumss.apps.googleusercontent.com",
   googleApiKey: "AIzaSyAdGtHSsEVEosdzClFPm50KJCsZiDyScZw",
   calendarId: "cc5bc4a1abce7d89d30e0d431af3aee718b5600a0719d295bf3ea0879937e326@group.calendar.google.com"
 };
