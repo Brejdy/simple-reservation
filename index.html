@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="pics/ChatGPT Image 6. 5. 2026 20_43_06.png">
   </head>
   <body>
     <main class="app-shell">
@@ -26,9 +27,12 @@
 
       <section class="dashboard is-hidden" id="dashboardView">
         <header class="topbar">
-          <div>
-            <p class="eyebrow">Ford Mustang</p>
-            <h1>Rezervační systém</h1>
+          <div class="brand-heading">
+            <img class="brand-logo" src="pics/ChatGPT Image 6. 5. 2026 20_43_06.png" alt="" aria-hidden="true">
+            <div>
+              <p class="eyebrow">Ford Mustang</p>
+              <h1>Rezervační systém</h1>
+            </div>
           </div>
           <div class="topbar-actions">
             <button type="button" class="ghost-button" id="authorizeButton">Připojit Google</button>
@@ -44,6 +48,46 @@
 
         <div class="status-line" id="statusLine">Google Calendar zatím není připojený.</div>
 
+        <section class="panel calendar-panel" aria-labelledby="calendarTitle">
+          <div class="panel-heading compact">
+            <div>
+              <p class="eyebrow">Kalendář</p>
+              <h2 id="calendarTitle">Rezervace auta</h2>
+            </div>
+            <div class="calendar-actions">
+              <button type="button" class="icon-button" id="calendarPrevButton" aria-label="Předchozí měsíc" title="Předchozí měsíc">
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M15 18l-6-6 6-6"></path>
+                </svg>
+              </button>
+              <button type="button" class="ghost-button" id="calendarTodayButton">Dnes</button>
+              <button type="button" class="icon-button" id="calendarNextButton" aria-label="Další měsíc" title="Další měsíc">
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M9 18l6-6-6-6"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="reservation-calendar" id="calendarGrid" aria-live="polite">
+            <div class="calendar-toolbar">
+              <strong id="calendarMonthLabel">Kalendář</strong>
+              <span id="calendarCount">Po připojení Google účtu se načtou rezervace.</span>
+            </div>
+            <div class="calendar-scroll">
+              <div class="calendar-weekdays" aria-hidden="true">
+                <span>Po</span>
+                <span>Út</span>
+                <span>St</span>
+                <span>Čt</span>
+                <span>Pá</span>
+                <span>So</span>
+                <span>Ne</span>
+              </div>
+              <div class="calendar-days" id="calendarDays"></div>
+            </div>
+          </div>
+        </section>
+
         <section class="content-grid">
           <form class="panel booking-form" id="bookingForm">
             <div class="panel-heading">
@@ -55,7 +99,7 @@
 
             <div class="field-group">
               <label for="nameInput">Jméno</label>
-              <input id="nameInput" type="text" placeholder="Např. Jan Novák" required>
+              <input id="nameInput" type="text" placeholder="Kdo z nás pojede?" required>
             </div>
 
             <div class="two-columns">
@@ -141,22 +185,6 @@
           </aside>
         </section>
 
-        <section class="panel calendar-panel" aria-labelledby="calendarEmbedTitle">
-          <div class="panel-heading compact">
-            <div>
-              <p class="eyebrow">Google Calendar</p>
-              <h2 id="calendarEmbedTitle">Kalend&aacute;&rcaron; rezervac&iacute;</h2>
-            </div>
-          </div>
-          <div class="calendar-frame-wrap">
-            <iframe
-              id="calendarFrame"
-              title="Kalend&aacute;&rcaron; rezervac&iacute; Ford Mustang"
-              src="https://calendar.google.com/calendar/embed?src=cc5bc4a1abce7d89d30e0d431af3aee718b5600a0719d295bf3ea0879937e326%40group.calendar.google.com&ctz=Europe%2FPrague"
-              frameborder="0"
-              scrolling="no"></iframe>
-          </div>
-        </section>
       </section>
     </main>
 

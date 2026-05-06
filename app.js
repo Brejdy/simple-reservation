@@ -9,12 +9,14 @@ const DISCOVERY_DOC = "https://www.googleapis.com/discovery/v1/apis/calendar/v3/
 const SCOPES = "https://www.googleapis.com/auth/calendar.events";
 const ACCESS_KEY = "mustang_reservation_access";
 const PARKING_KEY = "mustang_current_parking";
+const CALENDAR_TIME_ZONE = "Europe/Prague";
 
 let tokenClient = null;
 let gapiReady = false;
 let gisReady = false;
 let signedIn = false;
 let parkingEventId = null;
+let calendarMonth = startOfMonth(new Date());
 
 const els = {
   loginView: document.querySelector("#loginView"),
@@ -30,7 +32,13 @@ const els = {
   bookingError: document.querySelector("#bookingError"),
   createBookingButton: document.querySelector("#createBookingButton"),
   refreshButton: document.querySelector("#refreshButton"),
-  calendarFrame: document.querySelector("#calendarFrame"),
+  calendarGrid: document.querySelector("#calendarGrid"),
+  calendarDays: document.querySelector("#calendarDays"),
+  calendarMonthLabel: document.querySelector("#calendarMonthLabel"),
+  calendarCount: document.querySelector("#calendarCount"),
+  calendarPrevButton: document.querySelector("#calendarPrevButton"),
+  calendarNextButton: document.querySelector("#calendarNextButton"),
+  calendarTodayButton: document.querySelector("#calendarTodayButton"),
   eventsList: document.querySelector("#eventsList"),
   startInput: document.querySelector("#startInput"),
   endInput: document.querySelector("#endInput"),
@@ -96,6 +104,7 @@ function showDashboard() {
   els.dashboardView.classList.remove("is-hidden");
   setDefaultDateTimes();
   loadParking();
+  renderEmptyCalendar("Připoj Google účet pro zobrazení rezervací.");
 }
 
 function showLogin() {
@@ -132,38 +141,50 @@ function loadParking() {
 async function listUpcomingEvents() {
   if (!signedIn) {
     els.eventsList.innerHTML = '<p class="muted">Připoj Google účet pro načtení rezervací.</p>';
+    renderEmptyCalendar("Připoj Google účet pro zobrazení rezervací.");
     return;
   }
 
   els.eventsList.innerHTML = '<p class="muted">Načítám rezervace...</p>';
+  renderEmptyCalendar("Načítám rezervace...");
 
   try {
+    const range = getCalendarRange(calendarMonth);
     const response = await gapi.client.calendar.events.list({
       calendarId: CONFIG.calendarId,
-      timeMin: new Date().toISOString(),
+      timeMin: range.start.toISOString(),
+      timeMax: range.end.toISOString(),
       showDeleted: false,
       singleEvents: true,
-      maxResults: 8,
+      maxResults: 100,
       orderBy: "startTime"
     });
 
     const events = (response.result.items || [])
       .filter((event) => event.extendedProperties?.shared?.mustangParking !== "true");
+    renderReservationCalendar(events, range);
 
-    if (!events.length) {
+    const now = new Date();
+    const upcomingEvents = events
+      .filter((event) => getEventDates(event).end > now)
+      .slice(0, 8);
+
+    if (!upcomingEvents.length) {
       els.eventsList.innerHTML = '<p class="muted">Žádné nadcházející rezervace.</p>';
       return;
     }
 
-    els.eventsList.innerHTML = events.map((event) => {
+    els.eventsList.innerHTML = upcomingEvents.map((event) => {
       const start = event.start.dateTime || event.start.date;
       const end = event.end.dateTime || event.end.date;
+      const note = getReservationNote(event);
       return `
         <article class="event-item">
           <div class="event-item-main">
             <strong>${escapeHtml(event.summary || "Rezervace Mustangu")}</strong>
             <span>${formatDateRange(start, end)}</span>
             ${event.location ? `<span>${escapeHtml(event.location)}</span>` : ""}
+            ${note ? `<p class="event-note">${escapeHtml(note)}</p>` : ""}
           </div>
           <button type="button" class="delete-event-button" data-event-id="${escapeHtml(event.id)}" aria-label="Smazat rezervaci">
             <svg aria-hidden="true" viewBox="0 0 24 24">
@@ -181,6 +202,211 @@ async function listUpcomingEvents() {
     els.eventsList.innerHTML = '<p class="muted">Rezervace se nepodařilo načíst.</p>';
     console.error(error);
   }
+}
+
+function getCalendarRange(month) {
+  const start = startOfMonth(month);
+
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + 1);
+  return { start, end };
+}
+
+function renderEmptyCalendar(message) {
+  updateCalendarHeading(0);
+  if (!els.calendarDays) return;
+  els.calendarDays.innerHTML = `<p class="calendar-message">${escapeHtml(message)}</p>`;
+}
+
+function renderReservationCalendar(events, range) {
+  if (!els.calendarDays) return;
+
+  const monthStart = new Date(range.start);
+  const calendarStart = new Date(monthStart);
+  const mondayOffset = (calendarStart.getDay() + 6) % 7;
+  calendarStart.setDate(calendarStart.getDate() - mondayOffset);
+
+  const days = Array.from({ length: 42 }, (_, index) => {
+    const day = new Date(calendarStart);
+    day.setDate(calendarStart.getDate() + index);
+    return day;
+  });
+
+  updateCalendarHeading(events.length);
+  els.calendarDays.innerHTML = [
+    ...days.map((day, index) => renderCalendarDay(day, index, monthStart)),
+    ...renderCalendarEventSegments(events, calendarStart)
+  ].join("");
+}
+
+function renderCalendarDay(day, index, monthStart) {
+  const isCurrentMonth = day.getMonth() === monthStart.getMonth();
+  const isToday = isSameDate(day, new Date());
+  const dateValue = toDateOnly(day);
+  const row = Math.floor(index / 7) + 1;
+  const column = (index % 7) + 1;
+
+  return `
+    <button type="button" class="calendar-day ${isCurrentMonth ? "" : "is-muted"} ${isToday ? "is-today" : ""}" data-calendar-day="${dateValue}" style="grid-row: ${row}; grid-column: ${column};">
+      <span class="calendar-day-number">${day.getDate()}</span>
+    </button>
+  `;
+}
+
+function renderCalendarEventSegments(events, calendarStart) {
+  const calendarEnd = new Date(calendarStart);
+  calendarEnd.setDate(calendarEnd.getDate() + 42);
+  const lanesByRow = Array.from({ length: 6 }, () => []);
+
+  return events
+    .flatMap((event) => getCalendarEventSegments(event, calendarStart, calendarEnd))
+    .sort((a, b) => a.row - b.row || a.column - b.column || b.span - a.span)
+    .map((segment) => {
+      const rowLanes = lanesByRow[segment.row - 1];
+      let lane = rowLanes.findIndex((laneEnd) => laneEnd < segment.column);
+      if (lane === -1) {
+        lane = rowLanes.length;
+      }
+      rowLanes[lane] = segment.column + segment.span - 1;
+      return renderCalendarEventSegment(segment, lane);
+    });
+}
+
+function getCalendarEventSegments(event, calendarStart, calendarEnd) {
+  const { start, end } = getEventDates(event);
+  const eventStart = startOfDay(start);
+  const eventEnd = startOfDay(new Date(end.getTime() - 1));
+  const firstVisibleDay = maxDate(eventStart, calendarStart);
+  const lastVisibleDay = minDate(eventEnd, new Date(calendarEnd.getTime() - 1));
+  const segments = [];
+
+  if (lastVisibleDay < calendarStart || firstVisibleDay >= calendarEnd) {
+    return segments;
+  }
+
+  let segmentStart = new Date(firstVisibleDay);
+  while (segmentStart <= lastVisibleDay) {
+    const dayOffset = daysBetween(calendarStart, segmentStart);
+    const row = Math.floor(dayOffset / 7) + 1;
+    const column = (dayOffset % 7) + 1;
+    const weekEnd = new Date(segmentStart);
+    weekEnd.setDate(weekEnd.getDate() + (7 - column));
+    const segmentEnd = minDate(weekEnd, lastVisibleDay);
+    const span = daysBetween(segmentStart, segmentEnd) + 1;
+
+    segments.push({ event, row, column, span, start, end });
+    segmentStart = new Date(segmentEnd);
+    segmentStart.setDate(segmentStart.getDate() + 1);
+  }
+
+  return segments;
+}
+
+function renderCalendarEventSegment(segment, lane) {
+  const { event, row, column, span, start, end } = segment;
+  const isMultiDay = !isSameDate(start, end);
+  const eventTop = 58 + lane * 54;
+
+  return `
+    <span class="calendar-event ${isMultiDay ? "is-multi-day" : ""}" title="${escapeHtml(formatDateRange(start, end))}" style="grid-row: ${row}; grid-column: ${column} / span ${span}; --event-top: ${eventTop}px;">
+      <strong>${escapeHtml(event.summary || "Rezervace Mustangu")}</strong>
+      <span>${escapeHtml(isMultiDay ? formatCompactDateRange(start, end) : formatEventTime(start, end))}</span>
+    </span>
+  `;
+}
+
+function updateCalendarHeading(eventCount) {
+  if (els.calendarMonthLabel) {
+    els.calendarMonthLabel.textContent = new Intl.DateTimeFormat("cs-CZ", {
+      month: "long",
+      year: "numeric"
+    }).format(calendarMonth);
+  }
+
+  if (els.calendarCount) {
+    els.calendarCount.textContent = eventCount
+      ? `${eventCount} rezervací v měsíci`
+      : "Žádné rezervace v měsíci";
+  }
+}
+
+function getEventDates(event) {
+  return {
+    start: new Date(event.start.dateTime || event.start.date),
+    end: new Date(event.end.dateTime || event.end.date)
+  };
+}
+
+function getReservationNote(event) {
+  return String(event.description || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line
+      && !line.startsWith("Vytvořeno z rezervační stránky")
+      && !line.startsWith("Aktuálně zaparkováno:"))
+    .join("\n");
+}
+
+function startOfDay(date) {
+  const day = new Date(date);
+  day.setHours(0, 0, 0, 0);
+  return day;
+}
+
+function minDate(a, b) {
+  return a < b ? new Date(a) : new Date(b);
+}
+
+function maxDate(a, b) {
+  return a > b ? new Date(a) : new Date(b);
+}
+
+function daysBetween(start, end) {
+  const startDate = startOfDay(start);
+  const endDate = startOfDay(end);
+  return Math.round((endDate - startDate) / 86400000);
+}
+
+function isSameDate(a, b) {
+  return a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate();
+}
+
+function startOfMonth(date) {
+  const month = new Date(date);
+  month.setDate(1);
+  month.setHours(0, 0, 0, 0);
+  return month;
+}
+
+function selectCalendarDay(dateValue) {
+  const start = new Date(`${dateValue}T09:00`);
+  const end = new Date(start);
+  end.setHours(end.getHours() + 2);
+  els.startInput.value = toDatetimeLocal(start);
+  els.endInput.value = toDatetimeLocal(end);
+  els.bookingForm.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function formatEventTime(start, end) {
+  const formatter = new Intl.DateTimeFormat("cs-CZ", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+  return `${formatter.format(start)}-${formatter.format(end)}`;
+}
+
+function formatCompactDateRange(start, end) {
+  const dateFormatter = new Intl.DateTimeFormat("cs-CZ", {
+    day: "numeric",
+    month: "numeric"
+  });
+  const timeFormatter = new Intl.DateTimeFormat("cs-CZ", {
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+  return `${dateFormatter.format(start)} ${timeFormatter.format(start)} - ${dateFormatter.format(end)} ${timeFormatter.format(end)}`;
 }
 
 async function createBooking(event) {
@@ -225,13 +451,15 @@ async function createBooking(event) {
         location: base,
         description,
         start: {
-          dateTime: start.toISOString(),
-          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+          dateTime: toCalendarDateTime(start),
+          timeZone: CALENDAR_TIME_ZONE
         },
         end: {
-          dateTime: end.toISOString(),
-          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+          dateTime: toCalendarDateTime(end),
+          timeZone: CALENDAR_TIME_ZONE
         },
+        visibility: "public",
+        transparency: "opaque",
         extendedProperties: {
           shared: {
             mustangReservation: "true"
@@ -243,7 +471,6 @@ async function createBooking(event) {
     els.bookingForm.reset();
     setDefaultDateTimes();
     await listUpcomingEvents();
-    refreshCalendarFrame();
     updateStatus("Rezervace byla vytvořena v Google Calendar.", true);
   } catch (error) {
     els.bookingError.textContent = "Rezervaci se nepodařilo vytvořit.";
@@ -270,18 +497,11 @@ async function deleteBooking(eventId) {
     });
 
     await listUpcomingEvents();
-    refreshCalendarFrame();
     updateStatus("Rezervace byla smazána.", true);
   } catch (error) {
     updateStatus("Rezervaci se nepodařilo smazat.", false);
     console.error(error);
   }
-}
-
-function refreshCalendarFrame() {
-  if (!els.calendarFrame) return;
-  const src = els.calendarFrame.src.split("&refresh=")[0];
-  els.calendarFrame.src = `${src}&refresh=${Date.now()}`;
 }
 
 async function findOverlappingReservations(start, end) {
@@ -393,6 +613,10 @@ function toDateOnly(date) {
   return offsetDate.toISOString().slice(0, 10);
 }
 
+function toCalendarDateTime(date) {
+  return `${toDatetimeLocal(date)}:00`;
+}
+
 function formatDateRange(start, end) {
   const formatter = new Intl.DateTimeFormat("cs-CZ", {
     dateStyle: "medium",
@@ -448,10 +672,30 @@ els.signoutButton.addEventListener("click", () => {
   els.authorizeButton.classList.remove("is-hidden");
   updateStatus("Google Calendar je odpojený.", false);
   els.eventsList.innerHTML = '<p class="muted">Po připojení Google účtu se načtou nejbližší rezervace.</p>';
+  renderEmptyCalendar("Po připojení Google účtu se načtou rezervace.");
 });
 
 els.bookingForm.addEventListener("submit", createBooking);
 els.refreshButton.addEventListener("click", listUpcomingEvents);
+els.calendarPrevButton.addEventListener("click", async () => {
+  calendarMonth.setMonth(calendarMonth.getMonth() - 1);
+  calendarMonth = startOfMonth(calendarMonth);
+  await listUpcomingEvents();
+});
+els.calendarNextButton.addEventListener("click", async () => {
+  calendarMonth.setMonth(calendarMonth.getMonth() + 1);
+  calendarMonth = startOfMonth(calendarMonth);
+  await listUpcomingEvents();
+});
+els.calendarTodayButton.addEventListener("click", async () => {
+  calendarMonth = startOfMonth(new Date());
+  await listUpcomingEvents();
+});
+els.calendarDays.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-calendar-day]");
+  if (!button) return;
+  selectCalendarDay(button.dataset.calendarDay);
+});
 els.eventsList.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-event-id]");
   if (!button) return;
