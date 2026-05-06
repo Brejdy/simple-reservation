@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ford Mustang - rezervace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="login-view" id="loginView" aria-labelledby="loginTitle">
+        <div class="login-media" aria-hidden="true"></div>
+        <form class="login-panel" id="loginForm">
+          <p class="eyebrow">Rezervace vozidla</p>
+          <h1 id="loginTitle">Ford Mustang</h1>
+          <p class="muted">Přístup je chráněný jednoduchým heslem uloženým přímo v aplikaci.</p>
+          <label for="passwordInput">Heslo</label>
+          <input id="passwordInput" type="password" autocomplete="current-password" required>
+          <p class="form-error" id="loginError" role="alert"></p>
+          <button type="submit" class="primary-button">Odemknout</button>
+        </form>
+      </section>
+
+      <section class="dashboard is-hidden" id="dashboardView">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Ford Mustang</p>
+            <h1>Rezervační systém</h1>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" class="ghost-button" id="authorizeButton">Připojit Google</button>
+            <button type="button" class="ghost-button is-hidden" id="signoutButton">Odpojit</button>
+            <button type="button" class="icon-button" id="lockButton" aria-label="Zamknout aplikaci" title="Zamknout aplikaci">
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="status-line" id="statusLine">Google Calendar zatím není připojený.</div>
+
+        <section class="content-grid">
+          <form class="panel booking-form" id="bookingForm">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Nová jízda</p>
+                <h2>Vytvořit rezervaci</h2>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label for="nameInput">Jméno</label>
+              <input id="nameInput" type="text" placeholder="Např. Jan Novák" required>
+            </div>
+
+            <div class="two-columns">
+              <div class="field-group">
+                <label for="startInput">Začátek</label>
+                <input id="startInput" type="datetime-local" required>
+              </div>
+              <div class="field-group">
+                <label for="endInput">Konec</label>
+                <input id="endInput" type="datetime-local" required>
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label for="purposeInput">Poznámka</label>
+              <textarea id="purposeInput" rows="4" placeholder="Kam se jede, předání klíčů, tankování..."></textarea>
+            </div>
+
+            <div class="field-group">
+              <span class="label-text">Předání / návrat</span>
+              <div class="segmented" role="radiogroup" aria-label="Místo předání">
+                <label>
+                  <input type="radio" name="base" value="Choceradská" checked>
+                  <span>Choceradská</span>
+                </label>
+                <label>
+                  <input type="radio" name="base" value="Jirčany">
+                  <span>Jirčany</span>
+                </label>
+              </div>
+            </div>
+
+            <button type="submit" class="primary-button" id="createBookingButton">Vytvořit v Google Calendar</button>
+            <p class="form-error" id="bookingError" role="alert"></p>
+          </form>
+
+          <aside class="side-column">
+            <section class="panel parking-panel" aria-labelledby="parkingTitle">
+              <div class="panel-heading compact">
+                <div>
+                  <p class="eyebrow">Aktuální stav</p>
+                  <h2 id="parkingTitle">Kde stojí auto</h2>
+                </div>
+              </div>
+              <div class="parking-options" id="parkingOptions">
+                <label class="parking-option">
+                  <input type="radio" name="parking" value="Choceradská">
+                  <span>
+                    <strong>Choceradská</strong>
+                    <small>Základna Praha</small>
+                  </span>
+                </label>
+                <label class="parking-option">
+                  <input type="radio" name="parking" value="Jirčany">
+                  <span>
+                    <strong>Jirčany</strong>
+                    <small>Druhá základna</small>
+                  </span>
+                </label>
+              </div>
+              <p class="saved-note" id="parkingSaved">Uloženo lokálně v prohlížeči.</p>
+            </section>
+
+            <section class="panel upcoming-panel" aria-labelledby="upcomingTitle">
+              <div class="panel-heading compact">
+                <div>
+                  <p class="eyebrow">Kalendář</p>
+                  <h2 id="upcomingTitle">Nadcházející rezervace</h2>
+                </div>
+                <button type="button" class="icon-button" id="refreshButton" aria-label="Obnovit rezervace" title="Obnovit rezervace">
+                  <svg aria-hidden="true" viewBox="0 0 24 24">
+                    <path d="M21 12a9 9 0 0 1-15.2 6.5"></path>
+                    <path d="M3 12A9 9 0 0 1 18.2 5.5"></path>
+                    <path d="M18 2v4h-4"></path>
+                    <path d="M6 22v-4h4"></path>
+                  </svg>
+                </button>
+              </div>
+              <div class="events-list" id="eventsList">
+                <p class="muted">Po připojení Google účtu se načtou nejbližší rezervace.</p>
+              </div>
+            </section>
+          </aside>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+    <script async defer src="https://apis.google.com/js/api.js" onload="window.gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="window.gisLoaded()"></script>
+  </body>
+</html>
