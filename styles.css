@@ -1,5 +1,6 @@
 :root {
   color-scheme: light;
+  --page-gutter: clamp(12px, 1.4vw, 28px);
   --bg: #f4f1ea;
   --ink: #1e2528;
   --muted: #697176;
@@ -16,9 +17,18 @@
   box-sizing: border-box;
 }
 
+html {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
+  overflow-x: hidden;
   background: var(--bg);
   color: var(--ink);
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -35,7 +45,10 @@ button {
 }
 
 .app-shell {
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
+  overflow-x: clip;
 }
 
 .is-hidden {
@@ -195,8 +208,11 @@ textarea:focus {
 }
 
 .dashboard {
-  margin: 0 auto;
-  padding: 26px 0 42px;
+  width: 100vw;
+  max-width: 100%;
+  margin: 0;
+  padding: 26px var(--page-gutter) 42px;
+  overflow-x: hidden;
 }
 
 .topbar {
@@ -630,12 +646,7 @@ textarea:focus {
   }
 
   .calendar-scroll {
-    overflow-x: auto;
-  }
-
-  .calendar-weekdays,
-  .calendar-days {
-    min-width: 720px;
+    overflow-x: hidden;
   }
 
   .calendar-days {
@@ -645,7 +656,7 @@ textarea:focus {
 
 @media (max-width: 520px) {
   .dashboard {
-    width: min(100% - 22px, 1680px);
+    --page-gutter: 11px;
     padding-top: 14px;
   }
 
