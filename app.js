@@ -1,8 +1,8 @@
 const CONFIG = {
-  password: "mustang2026",
-  googleClientId: "PASTE_GOOGLE_OAUTH_CLIENT_ID_HERE",
-  googleApiKey: "PASTE_GOOGLE_API_KEY_HERE",
-  calendarId: "primary"
+  password: "California2022!",
+  googleClientId: "213574543519-q70v7qsv9mkvnpjpds5o2e5bg7utg0e7.apps.googleusercontent.com", //"213574543519-3f050ph2jcohilvrtmc9ip814m2mumss.apps.googleusercontent.com",
+  googleApiKey: "AIzaSyAdGtHSsEVEosdzClFPm50KJCsZiDyScZw",
+  calendarId: "cc5bc4a1abce7d89d30e0d431af3aee718b5600a0719d295bf3ea0879937e326@group.calendar.google.com"
 };
 
 const DISCOVERY_DOC = "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest";
@@ -30,6 +30,7 @@ const els = {
   bookingError: document.querySelector("#bookingError"),
   createBookingButton: document.querySelector("#createBookingButton"),
   refreshButton: document.querySelector("#refreshButton"),
+  calendarFrame: document.querySelector("#calendarFrame"),
   eventsList: document.querySelector("#eventsList"),
   startInput: document.querySelector("#startInput"),
   endInput: document.querySelector("#endInput"),
@@ -159,9 +160,20 @@ async function listUpcomingEvents() {
       const end = event.end.dateTime || event.end.date;
       return `
         <article class="event-item">
-          <strong>${escapeHtml(event.summary || "Rezervace Mustangu")}</strong>
-          <span>${formatDateRange(start, end)}</span>
-          ${event.location ? `<span>${escapeHtml(event.location)}</span>` : ""}
+          <div class="event-item-main">
+            <strong>${escapeHtml(event.summary || "Rezervace Mustangu")}</strong>
+            <span>${formatDateRange(start, end)}</span>
+            ${event.location ? `<span>${escapeHtml(event.location)}</span>` : ""}
+          </div>
+          <button type="button" class="delete-event-button" data-event-id="${escapeHtml(event.id)}" aria-label="Smazat rezervaci">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M3 6h18"></path>
+              <path d="M8 6V4h8v2"></path>
+              <path d="M19 6l-1 14H6L5 6"></path>
+              <path d="M10 11v5"></path>
+              <path d="M14 11v5"></path>
+            </svg>
+          </button>
         </article>
       `;
     }).join("");
@@ -231,6 +243,7 @@ async function createBooking(event) {
     els.bookingForm.reset();
     setDefaultDateTimes();
     await listUpcomingEvents();
+    refreshCalendarFrame();
     updateStatus("Rezervace byla vytvořena v Google Calendar.", true);
   } catch (error) {
     els.bookingError.textContent = "Rezervaci se nepodařilo vytvořit.";
@@ -239,6 +252,36 @@ async function createBooking(event) {
     els.createBookingButton.disabled = false;
     els.createBookingButton.textContent = "Vytvořit v Google Calendar";
   }
+}
+
+async function deleteBooking(eventId) {
+  if (!signedIn) {
+    updateStatus("Nejdřív připoj Google účet.", false);
+    return;
+  }
+
+  const confirmed = window.confirm("Opravdu smazat tuto rezervaci?");
+  if (!confirmed) return;
+
+  try {
+    await gapi.client.calendar.events.delete({
+      calendarId: CONFIG.calendarId,
+      eventId
+    });
+
+    await listUpcomingEvents();
+    refreshCalendarFrame();
+    updateStatus("Rezervace byla smazána.", true);
+  } catch (error) {
+    updateStatus("Rezervaci se nepodařilo smazat.", false);
+    console.error(error);
+  }
+}
+
+function refreshCalendarFrame() {
+  if (!els.calendarFrame) return;
+  const src = els.calendarFrame.src.split("&refresh=")[0];
+  els.calendarFrame.src = `${src}&refresh=${Date.now()}`;
 }
 
 async function findOverlappingReservations(start, end) {
@@ -409,6 +452,11 @@ els.signoutButton.addEventListener("click", () => {
 
 els.bookingForm.addEventListener("submit", createBooking);
 els.refreshButton.addEventListener("click", listUpcomingEvents);
+els.eventsList.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-event-id]");
+  if (!button) return;
+  await deleteBooking(button.dataset.eventId);
+});
 
 document.querySelectorAll('input[name="parking"]').forEach((input) => {
   input.addEventListener("change", async () => {

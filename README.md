@@ -2,6 +2,8 @@
 
 Staticka GitHub Pages aplikace pro rezervace auta pres Google Calendar API. Rezervace i sdilena aktualni poloha auta se ukladaji do Google Calendar.
 
+Rezervace lze po prihlaseni ke Google uctu vytvaret i mazat. Vlozene kalendarove zobrazeni je v `index.html` jako Google Calendar iframe.
+
 ## Nastaveni
 
 1. V Google Cloud Console vytvor projekt.
