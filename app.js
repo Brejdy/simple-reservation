@@ -8,6 +8,7 @@ const CONFIG = {
 const DISCOVERY_DOC = "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest";
 const SCOPES = "https://www.googleapis.com/auth/calendar.events";
 const ACCESS_KEY = "mustang_reservation_access";
+const GOOGLE_CONNECTED_KEY = "mustang_google_connected";
 const PARKING_KEY = "mustang_current_parking";
 const CALENDAR_TIME_ZONE = "Europe/Prague";
 
@@ -17,6 +18,7 @@ let gisReady = false;
 let signedIn = false;
 let parkingEventId = null;
 let calendarMonth = startOfMonth(new Date());
+let googleAuthMode = "consent";
 
 const els = {
   loginView: document.querySelector("#loginView"),
@@ -77,11 +79,18 @@ function maybeEnableGoogle() {
     scope: SCOPES,
     callback: async (response) => {
       if (response.error) {
-        updateStatus("Google přihlášení se nepodařilo.", false);
+        localStorage.removeItem(GOOGLE_CONNECTED_KEY);
+        updateStatus(
+          googleAuthMode === ""
+            ? "Google Calendar se nepodařilo obnovit automaticky. Klikni na Připojit Google."
+            : "Google přihlášení se nepodařilo.",
+          false
+        );
         return;
       }
 
       signedIn = true;
+      localStorage.setItem(GOOGLE_CONNECTED_KEY, "true");
       els.authorizeButton.classList.add("is-hidden");
       els.signoutButton.classList.remove("is-hidden");
       updateStatus("Google Calendar je připojený.", true);
@@ -91,6 +100,7 @@ function maybeEnableGoogle() {
   });
 
   updateStatus("Google Calendar je připravený k připojení.", true);
+  tryRestoreGoogleConnection();
 }
 
 function isGoogleConfigured() {
@@ -99,12 +109,35 @@ function isGoogleConfigured() {
     && CONFIG.calendarId.trim().length > 0;
 }
 
+function requestGoogleAccess(promptMode) {
+  if (!tokenClient) {
+    updateStatus("Google konfigurace ještě není připravená.", false);
+    return;
+  }
+
+  googleAuthMode = promptMode;
+  tokenClient.requestAccessToken({ prompt: promptMode });
+}
+
+function tryRestoreGoogleConnection() {
+  if (!tokenClient || signedIn || localStorage.getItem(GOOGLE_CONNECTED_KEY) !== "true") return;
+  if (els.dashboardView.classList.contains("is-hidden")) return;
+
+  updateStatus("Zkouším obnovit Google Calendar...", true);
+  requestGoogleAccess("");
+}
+
 function showDashboard() {
   els.loginView.classList.add("is-hidden");
   els.dashboardView.classList.remove("is-hidden");
   setDefaultDateTimes();
   loadParking();
-  renderEmptyCalendar("Připoj Google účet pro zobrazení rezervací.");
+  if (signedIn) {
+    listUpcomingEvents();
+  } else {
+    renderEmptyCalendar("Připoj Google účet pro zobrazení rezervací.");
+    tryRestoreGoogleConnection();
+  }
 }
 
 function showLogin() {
@@ -652,12 +685,7 @@ els.lockButton.addEventListener("click", () => {
 });
 
 els.authorizeButton.addEventListener("click", () => {
-  if (!tokenClient) {
-    updateStatus("Google konfigurace ještě není připravená.", false);
-    return;
-  }
-
-  tokenClient.requestAccessToken({ prompt: "consent" });
+  requestGoogleAccess("consent");
 });
 
 els.signoutButton.addEventListener("click", () => {
@@ -668,6 +696,7 @@ els.signoutButton.addEventListener("click", () => {
   }
 
   signedIn = false;
+  localStorage.removeItem(GOOGLE_CONNECTED_KEY);
   els.signoutButton.classList.add("is-hidden");
   els.authorizeButton.classList.remove("is-hidden");
   updateStatus("Google Calendar je odpojený.", false);
